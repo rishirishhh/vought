@@ -3,8 +3,8 @@ module github.com/rishirishhh/vought/src
 go 1.24.4
 
 require (
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.7.0
 )
 

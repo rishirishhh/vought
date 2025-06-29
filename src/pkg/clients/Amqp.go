@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 )
 
 type AmqpClient interface {
@@ -20,7 +20,7 @@ type AmqpClient interface {
 	Consume(nameQueue string) (<-chan amqp.Delivery, error)
 }
 
-var _AmqpClient = &amqpClient{}
+var _ AmqpClient = &amqpClient{}
 
 type amqpClient struct {
 	connection    *amqp.Connection
@@ -45,14 +45,12 @@ func NewAmqpClient(user string, pwd string, addr string) (AmqpClient, error) {
 	if err != nil {
 		return amqpC, err
 	}
-
 	amqpC.connection = conn
 
 	channel, err := conn.Channel()
 	if err != nil {
 		return amqpC, err
 	}
-
 	amqpC.channel = channel
 
 	return amqpC, err
@@ -70,7 +68,6 @@ func (r *amqpClient) WithRedial() chan AmqpClient {
 				log.Error("Could not reconnect to RabbitMQ : ", err)
 				continue
 			}
-
 			if r.exchangerName != "" {
 				err := client.WithExchanger(r.exchangerName)
 				if err != nil {
@@ -78,26 +75,23 @@ func (r *amqpClient) WithRedial() chan AmqpClient {
 					continue
 				}
 			}
-
 			session <- client
 		}
 	}()
-
 	return session
 }
 
 func (r *amqpClient) WithExchanger(exchangerName string) error {
 	r.exchangerName = exchangerName
 	err := r.channel.ExchangeDeclare(
-		exchangerName,
-		"direct",
-		true,
-		false,
-		false,
-		false,
-		nil,
+		exchangerName, // name
+		"direct",      // type
+		true,          // durable
+		false,         // auto-deleted
+		false,         // internal
+		false,         // no-wait
+		nil,           // arguments
 	)
-
 	return err
 }
 
