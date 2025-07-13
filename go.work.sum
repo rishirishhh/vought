@@ -1,1 +1,2 @@
-go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
+github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.83 h1:08otkOELsIi0toRRGMytlJhOctcN8xfKfKFR2NXz3kE=
+github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.83/go.mod h1:dGsGb2wI8JDWeMAhjVPP+z+dqvYjL6k6o+EujcRNk5c=
