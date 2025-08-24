@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 
+	jsonDTO "github.com/rishirishhh/vought/src/cmd/api/dto/json"
+
 	"github.com/rishirishhh/vought/src/cmd/api/config"
+	"github.com/rishirishhh/vought/src/cmd/api/dto/protobuf"
 	"github.com/rishirishhh/vought/src/pkg/clients"
 	contracts "github.com/rishirishhh/vought/src/pkg/contracts/v1"
 )
@@ -92,7 +97,16 @@ var HandleMessage = func(ctx context.Context, wsh *WSHandler, randomQueueName st
 		return nil
 	})
 
+	// Read message from client
 	go wsh.handleClientMessage(ctx, clear, randomQueueName, conn)
+
+	// Transfer message from queue to Client
+	go wsh.handleUpdateMessage(ctx, randomQueueName, conn)
+
+	// Ping client to ensure connection is still needed
+	wsh.pingClient(ctx, clear, conn, time.Duration(5)*time.Second)
+
+	conn.Close()
 }
 
 func (wsh *WSHandler) handleClientMessage(ctx context.Context, clear context.CancelFunc, randomQueueName string, conn *websocket.Conn) {
@@ -141,8 +155,51 @@ func (wsh *WSHandler) handleUpdateMessage(ctx context.Context, randomQueueName s
 					log.Error("Fail to unmarshal video event : ", err)
 					continue
 				}
+				video := protobuf.VideoProtobufToVideo(videoProto)
+				video.Title = d.RoutingKey
+				msg, err := json.Marshal(jsonDTO.VideoToStatusJson(video))
+				if err != nil {
+					log.Error("Failed to marshall response to front :", err)
+				}
 
+				err = conn.WriteMessage(websocket.TextMessage, []byte(msg))
+				if err != nil {
+					log.Error("Cannot send message : ", err)
+					return
+				}
+
+				if err := d.Acknowledger.Ack(d.DeliveryTag, false); err != nil {
+					log.Error("Failed to Ack message ", video.ID, " - ", err)
+					continue
+				}
 			}
 		}
+
+		client.Close()
+	}
+}
+
+func (wsh *WSHandler) pingClient(ctx context.Context, clear context.CancelFunc, conn *websocket.Conn, timeout time.Duration) {
+	lastCheck := time.Now()
+	conn.SetPongHandler(func(appData string) error {
+		lastCheck = time.Now()
+		return nil
+	})
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			if time.Now().After(lastCheck.Add(timeout)) {
+				clear()
+				return
+			} else {
+				err := conn.WriteMessage(websocket.PingMessage, []byte("pingClient"))
+				if err != nil {
+					log.Error("Could not ping the client : ", err)
+				}
+			}
+		}
+		time.Sleep(timeout * 9 / 10)
 	}
 }
