@@ -1,0 +1,83 @@
+package json
+
+import (
+	"time"
+
+	"github.com/rishirishhh/vought/src/cmd/api/models"
+)
+
+type VideoJson struct {
+	ID         string     `json:"id" example:"aaaa-b56b-..."`
+	Title      string     `json:"title" example:"A Title"`
+	Status     string     `json:"status" example:"VIDEO_STATUS_ENCODING"`
+	UploadedAt *time.Time `json:"uploadedAt" example:"2022-04-15T12:59:52Z"`
+	CreatedAt  *time.Time `json:"createdAt" example:"2022-04-15T12:59:52Z"`
+	UpdatedAt  *time.Time `json:"updatedAt" example:"2022-04-15T12:59:52Z"`
+}
+
+func VideoToVideoJson(video *models.Video) VideoJson {
+	videoJson := VideoJson{
+		ID:         video.ID,
+		Title:      video.Title,
+		Status:     video.Status.String(),
+		CreatedAt:  video.CreatedAt,
+		UploadedAt: video.UploadedAt,
+		UpdatedAt:  video.UpdatedAt,
+	}
+
+	return videoJson
+}
+
+type VideoStatus struct {
+	Title  string `json:"title" example:"AmazingTitle"`
+	Status string `json:"status" example:"UPLOADED"`
+}
+
+func VideoToStatusJson(video *models.Video) VideoStatus {
+	videoStatus := VideoStatus{
+		Title:  video.Title,
+		Status: video.Status.String(),
+	}
+
+	return videoStatus
+}
+
+type VideoInfo struct {
+	Title          string `json:"title" example:"amazingtitle"`
+	UploadDateUnix int64  `json:"uploadDateUnix" example:"1652173257"`
+}
+
+func VideoToInfoJson(video *models.Video) VideoInfo {
+	videoInfo := VideoInfo{
+		Title:          video.Title,
+		UploadDateUnix: video.UploadedAt.Unix(),
+	}
+
+	return videoInfo
+}
+
+type LinkJson struct {
+	Href   string `json:"href" example:"api/v1/videos/{id}/status"`
+	Method string `json:"method" example:"GET"`
+}
+
+func LinkToLinkJson(link *models.Link) LinkJson {
+	linkJson := LinkJson{
+		Href:   link.Href,
+		Method: link.Method,
+	}
+
+	return linkJson
+}
+
+type TransformerServiceJson struct {
+	Name string `json:"name" example:"gray"`
+}
+
+func TransformerServiceToTransformerServiceJson(transformerService models.TransformerService) TransformerServiceJson {
+	transformerServiceJson := TransformerServiceJson{
+		Name: transformerService.Name,
+	}
+
+	return transformerServiceJson
+}
