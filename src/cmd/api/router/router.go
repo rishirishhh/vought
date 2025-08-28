@@ -1,0 +1,29 @@
+package router
+
+import (
+	"net/http"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/rishirishhh/vought/src/cmd/api/config"
+	"github.com/rishirishhh/vought/src/cmd/api/controllers"
+	"github.com/rishirishhh/vought/src/pkg/clients"
+)
+
+type Clients struct {
+	S3Client              clients.IS3Client
+	AmqpClient            clients.AmqpClient
+	AmqpVideoStatusUpdate clients.AmqpClient
+	UUIDGen               clients.IUUIDGenerator
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewRouter(config config.Config, clients *Clients) http.Handler {
+	r := mux.NewRouter()
+	r.PathPrefix("/ws").Handler(controllers.WSHandler{Config: config, AmqpVideoStatusUpdate: clients.AmqpVideoStatusUpdate}).Methods("GET")
+	return handlers.CORS()(r)
+}
