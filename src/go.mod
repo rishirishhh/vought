@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.70
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.83.0
 	github.com/caarlos0/env/v6 v6.10.1
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
@@ -19,7 +20,10 @@ require (
 
 )
 
-require github.com/felixge/httpsnoop v1.0.3 // indirect
+require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/felixge/httpsnoop v1.0.3 // indirect
+)
 
 require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.11 // indirect
