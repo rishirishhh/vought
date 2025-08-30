@@ -25,5 +25,14 @@ type responseWriter struct {
 func NewRouter(config config.Config, clients *Clients) http.Handler {
 	r := mux.NewRouter()
 	r.PathPrefix("/ws").Handler(controllers.WSHandler{Config: config, AmqpVideoStatusUpdate: clients.AmqpVideoStatusUpdate}).Methods("GET")
-	return handlers.CORS()(r)
+	return handlers.CORS(getCORS())(r)
+}
+
+func getCORS() (handlers.CORSOption, handlers.CORSOption, handlers.CORSOption, handlers.CORSOption) {
+	corsObj := handlers.AllowedOrigins([]string{"*"})
+	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "OPTIONS", "DELETE"})
+	headers := handlers.AllowedHeaders([]string{"Authorization"})
+	credentials := handlers.AllowCredentials()
+
+	return corsObj, methods, headers, credentials
 }
