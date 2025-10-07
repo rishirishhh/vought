@@ -47,3 +47,12 @@ func getCORS() (handlers.CORSOption, handlers.CORSOption, handlers.CORSOption, h
 
 	return corsObj, methods, headers, credentials
 }
+
+func NewResponseWriter(w http.ResponseWriter) *responseWriter {
+	return &responseWriter{w, http.StatusOK}
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
