@@ -175,9 +175,10 @@ func (s *serviceDiscovery) Stop() {
 
 // TODO : REMOVE IT WHEN SQUARESCALE UPDATE PORT FROM DOCKERFILE TO NOMAD/CONSUL
 func fixMeLater(name string) string {
-	if name == "gray" {
+	switch name {
+	case "gray":
 		return "50051"
-	} else if name == "flip" {
+	case "flip":
 		return "50052"
 	}
 	return ""
