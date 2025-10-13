@@ -20,7 +20,7 @@ import (
 
 type IS3Client interface {
 	ListObjects(ctx context.Context) ([]string, error)
-	GetObjects(ctx context.Context, key string) (io.Reader, error)
+	GetObject(ctx context.Context, key string) (io.Reader, error)
 	PutObjectInput(ctx context.Context, f io.Reader, path string) error
 	CreateBucketIfDoesNotExists(ctx context.Context, bucketName string) error
 	RemoveObject(ctx context.Context, path string) error
@@ -98,7 +98,7 @@ func (s s3Client) ListObjects(ctx context.Context) ([]string, error) {
 	return objectsName, nil
 }
 
-func (s s3Client) GetObjects(ctx context.Context, key string) (io.Reader, error) {
+func (s s3Client) GetObject(ctx context.Context, key string) (io.Reader, error) {
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),

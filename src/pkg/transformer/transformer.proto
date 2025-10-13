@@ -1,0 +1,21 @@
+syntax="proto3";
+
+package pkg.transformer.v1;
+
+option go_package = "github.com/rishirishhh/vought/src/pkg/transformer";
+
+service TransformerService {
+    // Obtains the feature at a given position.
+    rpc TransformVideo(TransformVideoRequest) returns (stream TransformVideoResponse) {}
+}
+
+message TransformVideoRequest {
+    // The path of the video on S3.
+    string videopath = 1;
+    repeated string transformer_list = 2;
+}
+
+message TransformVideoResponse {
+    // The video part, as byte array.
+    bytes chunk = 1;
+}
