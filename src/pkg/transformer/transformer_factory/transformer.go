@@ -20,7 +20,7 @@ const MAX_CHUNK_SIZE int = 32000
 
 type ITransformerServer interface {
 	StartRPCServer(ctx context.Context, srv transformer.TransformerServiceServer, port uint32) error
-	TransformVideo(ctx context.Context, args *transformer.TransformVideoRequest, stream transformer.TransformerService_TransformVideoServer)
+	TransformVideo(ctx context.Context, args *transformer.TransformVideoRequest, stream transformer.TransformerService_TransformVideoServer) error
 	Stop()
 }
 
@@ -30,26 +30,8 @@ type TransformerServer struct {
 	S3Client                clients.IS3Client
 }
 
-func (t TransformerServer) createRPCClient(clientName string) (transformer.TransformerServiceClient, error) {
-	// Retrieve service address and port
-	tfServices, err := t.DiscoveryClient.GetTransformationService(clientName)
-	if err != nil {
-		log.Errorf("Cannot get address for service name %v : %v", clientName, err)
-		return nil, err
-	}
-
-	conn, err := grpc.Dial(tfServices, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Errorf("Cannot open TCP connection with grpc %v transformer server : %v", clientName, err)
-		return nil, err
-	}
-
-	return transformer.NewTransformerServiceClient(conn), nil
-
-}
-
 func (t TransformerServer) StartRPCServer(ctx context.Context, srv transformer.TransformerServiceServer, port uint32) error {
-	listen, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
 	if err != nil {
 		log.Error("failed to listen : ", err)
 		return err
@@ -58,7 +40,7 @@ func (t TransformerServer) StartRPCServer(ctx context.Context, srv transformer.T
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
 
-	// check for context
+	// Check for context
 	go func() {
 		<-ctx.Done()
 		log.Info("Gracefully shutdown grpcServer\n")
@@ -66,61 +48,11 @@ func (t TransformerServer) StartRPCServer(ctx context.Context, srv transformer.T
 	}()
 
 	transformer.RegisterTransformerServiceServer(grpcServer, srv)
-	if err := grpcServer.Serve(listen); err != nil {
+	if err := grpcServer.Serve(lis); err != nil {
 		log.Error("Cannot create gRPC server : ", err)
 		return err
 	}
 
-	return nil
-
-}
-
-func (t TransformerServer) sendVideoPartStream(transformedVideoPartReader *io.PipeReader, stream transformer.TransformerService_TransformVideoServer) error {
-	defer stream.Context().Done()
-
-	buf := make([]byte, MAX_CHUNK_SIZE)
-	for {
-		nbRead, err := transformedVideoPartReader.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			log.Error("Cannot read video part : ", err)
-			return err
-		}
-
-		if nbRead != 0 {
-			videoPart := transformer.TransformVideoResponse{
-				Chunk: buf[:nbRead],
-			}
-
-			if err := stream.Send(&videoPart); err != nil {
-				log.Error("Cannot send transformed video : ", err)
-				return err
-			}
-		}
-	}
-}
-
-func (t TransformerServer) recvVideoPartStream(transformedVideoPart io.Writer, stream transformer.TransformerService_TransformVideoClient) error {
-	for {
-		res, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			log.Error("Failed to receive stream : ", err)
-			return err
-		}
-
-		if res != nil {
-			_, err := transformedVideoPart.Write(res.Chunk)
-			if err != nil {
-				log.Error("Failed to write : ", err)
-				return err
-			}
-		}
-	}
 	return nil
 }
 
@@ -218,4 +150,70 @@ func (t TransformerServer) sendToNextTransformer(ctx context.Context, args *tran
 	}
 
 	return streamResponse, nil
+}
+
+func (t TransformerServer) sendVideoPartStream(transformedVideoPartReader *io.PipeReader, stream transformer.TransformerService_TransformVideoServer) error {
+	defer stream.Context().Done()
+
+	buf := make([]byte, MAX_CHUNK_SIZE)
+	for {
+		nbRead, err := transformedVideoPartReader.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			log.Error("Cannot read video part : ", err)
+			return err
+		}
+
+		if nbRead != 0 {
+			videoPart := transformer.TransformVideoResponse{
+				Chunk: buf[:nbRead],
+			}
+
+			if err := stream.Send(&videoPart); err != nil {
+				log.Error("Cannot send transformed video : ", err)
+				return err
+			}
+		}
+	}
+}
+
+func (t TransformerServer) recvVideoPartStream(transformedVideoPart io.Writer, stream transformer.TransformerService_TransformVideoClient) error {
+	for {
+		res, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Error("Failed to receive stream : ", err)
+			return err
+		}
+
+		if res != nil {
+			_, err := transformedVideoPart.Write(res.Chunk)
+			if err != nil {
+				log.Error("Failed to write : ", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (t TransformerServer) createRPCClient(clientName string) (transformer.TransformerServiceClient, error) {
+	// Retrieve service address and port
+	tfServices, err := t.DiscoveryClient.GetTransformationService(clientName)
+	if err != nil {
+		log.Errorf("Cannot get address for service name %v : %v", clientName, err)
+		return nil, err
+	}
+
+	conn, err := grpc.Dial(tfServices, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Errorf("Cannot open TCP connection with grpc %v transformer server : %v", clientName, err)
+		return nil, err
+	}
+
+	return transformer.NewTransformerServiceClient(conn), nil
 }
