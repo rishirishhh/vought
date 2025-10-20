@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rishirishhh/vought/src/cmd/api/metrics"
 	"github.com/rishirishhh/vought/src/pkg/clients"
+	"github.com/rishirishhh/vought/src/pkg/transformer/v1"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
