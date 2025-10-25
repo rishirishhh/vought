@@ -1,12 +1,23 @@
 package router
 
 import (
+	"bufio"
 	"database/sql"
+	"errors"
+	"net"
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/goji/httpauth"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rishirishhh/vought/src/cmd/api/config"
+	"github.com/rishirishhh/vought/src/cmd/api/metrics"
+
 	"github.com/rishirishhh/vought/src/cmd/api/controllers"
 	"github.com/rishirishhh/vought/src/cmd/api/db/dao"
 	"github.com/rishirishhh/vought/src/pkg/clients"
@@ -16,6 +27,7 @@ type Clients struct {
 	S3Client              clients.IS3Client
 	AmqpClient            clients.AmqpClient
 	AmqpVideoStatusUpdate clients.AmqpClient
+	ServiceDiscovery      clients.ServiceDiscovery
 	UUIDGen               clients.IUUIDGenerator
 }
 
@@ -32,10 +44,26 @@ type responseWriter struct {
 
 func NewRouter(config config.Config, clients *Clients, DAOs *DAOs) http.Handler {
 	r := mux.NewRouter()
+	r.Use(promotheusMiddleware)
 	r.PathPrefix("/ws").Handler(controllers.WSHandler{Config: config, AmqpVideoStatusUpdate: clients.AmqpVideoStatusUpdate}).Methods("GET")
 
+	r.PathPrefix("/metrics").Handler(promhttp.Handler()).Methods("GET", "POST")
+
+	r.PathPrefix("/health").Handler(controllers.HealthComponentHandler{}).Methods("GET")
+
 	v1 := r.PathPrefix("/api/v1").Subrouter()
+	v1.Use(httpauth.SimpleBasicAuth(config.UserAuth, config.PwdAuth))
+
+	v1.PathPrefix("/videos/{id}/streams/master.m3u8").Handler(controllers.VideoGetMasterHandler{S3Client: clients.S3Client, UUIDGen: clients.UUIDGen}).Methods("GET")
+	v1.PathPrefix("/videos/{id}/streams/{quality}/{filename}").Handler(controllers.VideoGetSubPartHandler{S3Client: clients.S3Client, UUIDGen: clients.UUIDGen, ServiceDiscovery: clients.ServiceDiscovery}).Methods("GET")
+	v1.PathPrefix("/videos/transformer/list").Handler(controllers.VideoTransformerListHandler{ServiceDiscovery: clients.ServiceDiscovery}).Methods("GET")
+	v1.PathPrefix("/videos/{id}/cover").Handler(controllers.VideoCoverHandler{S3Client: clients.S3Client, VideosDAO: &DAOs.VideosDAO, UUIDGen: clients.UUIDGen}).Methods("GET")
+	v1.PathPrefix("/videos/list/{attribute}/{order}/{page}/{limit}/{status}").Handler(controllers.VideosListHandler{VideosDAO: &DAOs.VideosDAO}).Methods("GET")
+	v1.PathPrefix("/videos/{id}/delete").Handler(controllers.VideoDeleteHandler{S3Client: clients.S3Client, VideosDAO: &DAOs.VideosDAO, UploadsDAO: &DAOs.UploadsDAO, UUIDGen: clients.UUIDGen}).Methods("DELETE")
+	v1.PathPrefix("/videos/{id}/archive").Handler(controllers.VideoArchiveHandler{VideosDAO: &DAOs.VideosDAO, UUIDGen: clients.UUIDGen}).Methods("PUT")
+	v1.PathPrefix("/videos/{id}/info").Handler(controllers.VideoGetInfoHandler{VideosDAO: &DAOs.VideosDAO, UUIDGen: clients.UUIDGen}).Methods("GET")
 	v1.PathPrefix("/videos/upload").Handler(controllers.VideoUploadHandler{S3Client: clients.S3Client, AmqpClient: clients.AmqpClient, AmqpVideoStatusUpdate: clients.AmqpVideoStatusUpdate, VideosDAO: &DAOs.VideosDAO, UploadsDAO: &DAOs.UploadsDAO, UUIDGen: clients.UUIDGen}).Methods("POST")
+
 	return handlers.CORS(getCORS())(r)
 }
 
@@ -55,4 +83,32 @@ func NewResponseWriter(w http.ResponseWriter) *responseWriter {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("hijack not supported")
+	}
+	return h.Hijack()
+}
+
+func promotheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := mux.CurrentRoute(r)
+		path, _ := route.GetPathTemplate()
+
+		timer := prometheus.NewTimer(metrics.HttpDuration.WithLabelValues(path))
+		rw := NewResponseWriter(w)
+		next.ServeHTTP(rw, r)
+
+		statusCode := rw.statusCode
+
+		if strings.Contains(path, "/api/v1") {
+			metrics.ResponseStatus.WithLabelValues(strconv.Itoa(statusCode)).Inc()
+			metrics.TotalRequests.WithLabelValues(path).Inc()
+		}
+
+		timer.ObserveDuration()
+	})
 }

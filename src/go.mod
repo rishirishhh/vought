@@ -10,6 +10,7 @@ require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/gabriel-vasile/mimetype v1.4.10
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
