@@ -111,9 +111,10 @@ func (v VideoGetSubPartHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	} else {
 		// Add metrics (should be move into transformations service implem)
 		for _, service := range transformers {
-			if service == "gray" {
+			switch service {
+			case "gray":
 				metrics.CounterVideoTransformGray.Inc()
-			} else if service == "flip" {
+			case "flip":
 				metrics.CounterVideoTransformFlip.Inc()
 			}
 		}
