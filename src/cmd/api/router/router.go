@@ -63,6 +63,7 @@ func NewRouter(config config.Config, clients *Clients, DAOs *DAOs) http.Handler 
 	v1.PathPrefix("/videos/{id}/archive").Handler(controllers.VideoArchiveHandler{VideosDAO: &DAOs.VideosDAO, UUIDGen: clients.UUIDGen}).Methods("PUT")
 	v1.PathPrefix("/videos/{id}/info").Handler(controllers.VideoGetInfoHandler{VideosDAO: &DAOs.VideosDAO, UUIDGen: clients.UUIDGen}).Methods("GET")
 	v1.PathPrefix("/videos/upload").Handler(controllers.VideoUploadHandler{S3Client: clients.S3Client, AmqpClient: clients.AmqpClient, AmqpVideoStatusUpdate: clients.AmqpVideoStatusUpdate, VideosDAO: &DAOs.VideosDAO, UploadsDAO: &DAOs.UploadsDAO, UUIDGen: clients.UUIDGen}).Methods("POST")
+	v1.PathPrefix("/videos/{id}/unarchive").Handler(controllers.VideoUnarchiveHandler{VideosDAO: &DAOs.VideosDAO, UUIDGen: clients.UUIDGen}).Methods("PUT")
 
 	return handlers.CORS(getCORS())(r)
 }
