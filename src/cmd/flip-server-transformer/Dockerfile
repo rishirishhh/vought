@@ -1,6 +1,6 @@
 FROM golang:1.18.2-bullseye@sha256:a95776d414fbb293ca9095c2b616cba2d684120d7f22061fb8f4845bd273fae6 as builder
 
-WORKDIR /go/src/voogle
+WORKDIR /go/src/vought
 COPY . .
 
 RUN go build ./cmd/flip-server-transformer
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /flip-server-transformer
-COPY --from=builder /go/src/voogle/flip-server-transformer /flip-server-transformer
+COPY --from=builder /go/src/vought/flip-server-transformer /flip-server-transformer
 
 EXPOSE 50052
 
